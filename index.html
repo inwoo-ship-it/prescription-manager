@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>처방전 관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ═══ TOPBAR ═══ -->
+<header class="topbar">
+  <div class="tb-left">
+    <div class="tb-logo-wrap">
+      <img src="logo.webp" alt="지킴" class="tb-logo-img">
+    </div>
+    <div>
+      <div class="tb-title">처방전 관리</div>
+      <div class="tb-sub">PRESCRIPTION TRACKER</div>
+    </div>
+  </div>
+  <div class="tb-center">
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <input type="text" id="q" placeholder="약국명, 환자명, 송장번호 검색…" autocomplete="off">
+      <button class="search-clear hidden" id="clear-q" onclick="clearSearch()">✕</button>
+    </div>
+  </div>
+  <div class="tb-right">
+    <div class="sync-status" id="sync-status">
+      <span class="sync-dot" id="sync-dot"></span>
+      <span id="sync-text">로딩 중</span>
+    </div>
+    <button class="btn btn-ghost" onclick="refresh()">
+      <svg viewBox="0 0 20 20" fill="none" width="14" height="14"><path d="M3 10a7 7 0 1 0 1.5-4.33" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M3 5.5V10h4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      새로고침
+    </button>
+    <button class="btn btn-ghost" onclick="showPrint()">🖨 캡처 출력</button>
+    <button class="btn btn-primary" onclick="openAdd()">+ 새 요청</button>
+  </div>
+</header>
+
+<!-- ═══ STATS BAR ═══ -->
+<div class="statsbar">
+  <div class="stat-item" onclick="filterStatus('')">
+    <span class="stat-num" id="st-total">0</span>
+    <span class="stat-label">전체</span>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat-item active-filter" id="sf-미처리" onclick="filterStatus('미처리')">
+    <span class="stat-num red" id="st-미처리">0</span>
+    <span class="stat-label">미처리</span>
+  </div>
+  <div class="stat-item urgent-stat" id="sf-임박" onclick="filterUrgent()">
+    <span class="stat-num urgent" id="st-임박">0</span>
+    <span class="stat-label">마감 임박</span>
+  </div>
+  <div class="stat-item active-filter" id="sf-처리중" onclick="filterStatus('처리중')">
+    <span class="stat-num amber" id="st-처리중">0</span>
+    <span class="stat-label">처리중</span>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat-item" id="sf-스캔완료" onclick="filterStatus('스캔완료')">
+    <span class="stat-num green" id="st-스캔완료">0</span>
+    <span class="stat-label">스캔완료</span>
+  </div>
+  <div class="stat-item" id="sf-공유완료" onclick="filterStatus('공유완료')">
+    <span class="stat-num blue" id="st-공유완료">0</span>
+    <span class="stat-label">공유완료</span>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="type-filters">
+    <button class="type-chip active" data-type="" onclick="filterType(this)">전체 유형</button>
+    <button class="type-chip" data-type="처방전 요청" onclick="filterType(this)">처방전 요청</button>
+    <button class="type-chip" data-type="우선 스캔" onclick="filterType(this)">우선 스캔</button>
+    <button class="type-chip" data-type="재스캔" onclick="filterType(this)">재스캔</button>
+    <button class="type-chip" data-type="박스 찾기" onclick="filterType(this)">박스 찾기</button>
+    <button class="type-chip" data-type="박스 회수" onclick="filterType(this)">박스 회수</button>
+  </div>
+</div>
+
+<!-- ═══ MAIN CONTENT ═══ -->
+<main class="main" id="main">
+  <div class="loading-full" id="initial-loading">
+    <div class="spinner-lg"></div>
+    <p>처방전 데이터를 불러오는 중…</p>
+  </div>
+  <div id="board" class="hidden"></div>
+</main>
+
+<!-- ═══ PRINT VIEW ═══ -->
+<div id="print-view" class="hidden">
+  <div class="print-topbar">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="tb-logo-wrap"><img src="logo.webp" alt="지킴" class="tb-logo-img"></div>
+      <div><div class="tb-title" style="color:#fff">처방전 관리</div></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" onclick="hidePrint()">← 돌아가기</button>
+      <button class="btn btn-primary" onclick="window.print()">🖨 인쇄 / PDF</button>
+    </div>
+  </div>
+  <div class="print-body" id="print-body"></div>
+</div>
+
+<!-- ═══ MODAL ═══ -->
+<div class="overlay hidden" id="overlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-hd">
+      <span class="modal-title" id="modal-title">새 요청 추가</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="fg">
+          <label>필요기한</label>
+          <input type="date" id="f-deadline">
+        </div>
+        <div class="fg">
+          <label>유형 <span class="req">*</span></label>
+          <select id="f-type" onchange="onTypeChange()">
+            <option>처방전 요청</option>
+            <option>우선 스캔</option>
+            <option>재스캔</option>
+            <option>박스 찾기</option>
+            <option>박스 회수</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>약국명 <span class="req">*</span></label>
+          <input type="text" id="f-pharmacy" placeholder="예: 영등포제일약국">
+        </div>
+        <div class="fg">
+          <label>대표명</label>
+          <input type="text" id="f-rep" placeholder="예: 이종옥">
+        </div>
+
+        <!-- 처방전 정보 (처방전 요청만) -->
+        <div class="fg prescription-only">
+          <label>교부일자</label>
+          <input type="text" id="f-issue" placeholder="예: 25-09-17">
+        </div>
+        <div class="fg prescription-only">
+          <label>환자명</label>
+          <input type="text" id="f-patient" placeholder="예: 박정순">
+        </div>
+        <div class="fg prescription-only">
+          <label>생년월일</label>
+          <input type="text" id="f-dob" placeholder="예: 670219">
+        </div>
+        <div class="fg prescription-only">
+          <label>병원이름</label>
+          <input type="text" id="f-hospital" placeholder="예: 마리아내과">
+        </div>
+
+        <!-- 물류 정보 (항상) -->
+        <div class="fg">
+          <label>물류집하일</label>
+          <input type="text" id="f-collect" placeholder="예: 25.12.23">
+        </div>
+        <div class="fg">
+          <label>배송완료일</label>
+          <input type="text" id="f-deliver" placeholder="예: 25.12.26">
+        </div>
+        <div class="fg full">
+          <label>고유 ID</label>
+          <input type="text" id="f-uid" placeholder="예: 1464  또는  1499~1501">
+        </div>
+        <div class="fg full">
+          <label>송장번호</label>
+          <textarea id="f-tracking" placeholder="박스당 한 줄씩 입력&#10;2568-0990-2145&#10;2568-0990-2156"></textarea>
+        </div>
+        <div class="fg">
+          <label>처리여부</label>
+          <select id="f-status">
+            <option>미처리</option><option>처리중</option><option>공유완료</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>작성일자</label>
+          <input type="date" id="f-created">
+        </div>
+        <div class="fg full">
+          <label>비고</label>
+          <textarea id="f-notes" placeholder="주의사항, 특이사항 등"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" id="save-btn" onclick="save()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PRINT PICKER ═══ -->
+<div class="overlay hidden" id="print-picker" onclick="if(event.target.id==='print-picker') this.classList.add('hidden')">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-hd">
+      <span class="modal-title">🖨 출력 범위 선택</span>
+      <button class="modal-close" onclick="document.getElementById('print-picker').classList.add('hidden')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px 24px 24px">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:18px">출력할 처리 상태를 선택하세요.</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="picker-btn" onclick="startPrint('미처리')">
+          <span class="picker-dot" style="background:#dc2626"></span>
+          <div>
+            <div class="picker-label">미처리만</div>
+            <div class="picker-sub">아직 처리되지 않은 항목</div>
+          </div>
+          <span class="picker-count red" id="pc-미처리">0건</span>
+        </button>
+        <button class="picker-btn" onclick="startPrint('처리중')">
+          <span class="picker-dot" style="background:#b45309"></span>
+          <div>
+            <div class="picker-label">처리중만</div>
+            <div class="picker-sub">현재 진행 중인 항목</div>
+          </div>
+          <span class="picker-count amber" id="pc-처리중">0건</span>
+        </button>
+        <button class="picker-btn featured" onclick="startPrint('both')">
+          <span class="picker-dot" style="background:var(--navy2)"></span>
+          <div>
+            <div class="picker-label">미처리 + 처리중</div>
+            <div class="picker-sub">두 상태 모두 출력 (상태별로 구분)</div>
+          </div>
+          <span class="picker-count navy" id="pc-both">0건</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div class="toast-stack" id="toasts"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
