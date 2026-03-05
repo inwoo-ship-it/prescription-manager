@@ -430,10 +430,10 @@ function renderCard(g, meta) {
             </div>`;
           })() : ''}
           <div class="card-status-wrap">
-            <select class="status-sel ${statusClass}"
-              onchange="changeStatus('${g.id}',this.value,${memberIds},this)">
+            <select class="status-sel ${statusClass}" id="sel-${g.id}">
               ${optHtml}
             </select>
+            <button class="status-apply-btn" onclick="applyStatus('${g.id}',${memberIds})">변경</button>
           </div>
         </div>
         <div class="card-body">
@@ -468,6 +468,12 @@ function toggleSection(key) {
 // ════════════════════════════════════════════════════════
 // STATUS CHANGE
 // ════════════════════════════════════════════════════════
+async function applyStatus(id, memberIds) {
+  const sel = document.getElementById('sel-' + id);
+  if (!sel) return;
+  await changeStatus(id, sel.value, memberIds, sel);
+}
+
 async function changeStatus(id, newStatus, memberIds, selectEl) {
   const g = allGroups.find(x => x.id === id);
   if (!g) return;
