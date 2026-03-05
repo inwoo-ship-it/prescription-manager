@@ -109,7 +109,12 @@ async function refresh() {
 
 async function apiPost(body) {
   try {
-    await fetch(SCRIPT_URL, { method:'POST', body:JSON.stringify(body), redirect:'follow' });
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(body),
+    });
     return { success: true };
   } catch(e) { return { error: e.message }; }
 }
@@ -689,21 +694,102 @@ function showPrint() {
 function startPrint(statusFilter) {
   document.getElementById('print-picker').classList.add('hidden');
 
-  // 선택한 상태 목록
-  const statuses = statusFilter === 'both' ? ['미처리','처리중'] : [statusFilter];
-
-  // 현재 검색/유형 필터 적용된 그룹 중 선택 상태만
+  const statuses   = statusFilter === 'both' ? ['미처리','처리중'] : [statusFilter];
   const baseGroups = getFilteredGroups().filter(g => statuses.includes(g.status || '미처리'));
 
-  if (!baseGroups.length) {
-    toast('출력할 데이터가 없습니다', 'err');
-    return;
+  if (!baseGroups.length) { toast('출력할 데이터가 없습니다', 'err'); return; }
+
+  const today      = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  const totalCount = baseGroups.length;
+  const statusTitle = statusFilter === 'both' ? '미처리 + 처리중' :
+                      statusFilter === '미처리' ? '미처리' : '처리중';
+
+  // 카드 1장 렌더 함수
+  function renderPrintCard(g, num) {
+    const type    = g.request_type || '처방전 요청';
+    const cfg     = PRINT_CFG[type] || PRINT_CFG['처방전 요청'];
+    const meta    = getMeta(type);
+    const patients = g.patients || [];
+    const isMulti  = g.count > 1;
+    const lines    = (g.tracking_numbers||'').split('\n').filter(Boolean);
+    const boxCount = parseBoxCount(g.tracking_numbers);
+    const trackHtml = lines.join('<br>') || g.tracking_numbers || '—';
+
+    // 마감일 표시
+    const diff = deadlineDiffText(g.deadline);
+    const deadlineHtml = g.deadline ? `
+      <span style="margin-left:auto;font-size:10px;font-weight:700;
+        padding:2px 8px;border-radius:6px;
+        background:${diff?.urgent||diff?.over?'#fff1f1':'#f1f5f9'};
+        color:${diff?.urgent||diff?.over?'#dc2626':'#64748b'};
+        border:1px solid ${diff?.urgent||diff?.over?'#fecaca':'#e2e8f0'}">
+        📅 ${g.deadline}${diff?' · '+diff.text:''}
+      </span>` : '';
+
+    // 유형 라벨 (카드마다 표시)
+    const typeLabelHtml = `<span style="
+      font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:10px;
+      background:${cfg.badgeBg};color:${cfg.badgeColor};
+      border:1px solid ${cfg.badgeBorder};margin-left:6px;white-space:nowrap">
+      ${cfg.label}
+    </span>`;
+
+    const rxHtml = meta.showRx ? (isMulti
+      ? `<div class="pc-patients">
+          ${patients.map((p,pi)=>`
+            <div class="pc-pt">
+              <div class="pc-pt-num" style="background:${cfg.numBg}">${pi+1}</div>
+              <span class="pc-pt-name">${p.patient_name||'—'}</span>
+              <span class="pc-pt-dob" style="margin-left:5px">${p.patient_dob?'('+p.patient_dob+')':''}</span>
+              ${p.hospital_name?`<span class="pc-pt-hosp">· ${p.hospital_name}</span>`:''}
+              <span class="pc-pt-issue">${p.issue_date||''}</span>
+            </div>`).join('')}
+         </div>`
+      : `<div class="pc-grid" style="margin-bottom:4px">
+          <div><div class="pcfl">환자명</div><div class="pcfv">${patients[0]?.patient_name||'—'}</div></div>
+          <div><div class="pcfl">생년월일</div><div class="pcfv">${patients[0]?.patient_dob||'—'}</div></div>
+          <div><div class="pcfl">교부일자</div><div class="pcfv">${patients[0]?.issue_date||'—'}</div></div>
+          ${patients[0]?.hospital_name?`<div style="grid-column:1/-1"><div class="pcfl">병원</div><div class="pcfv">${patients[0].hospital_name}</div></div>`:''}
+         </div>`) : '';
+
+    const warnHtml = g.notes
+      ? `<div class="pc-warn ${['우선 스캔','재스캔'].includes(type)?'red':'amber'}">⚠️ ${g.notes}</div>` : '';
+
+    return `<div class="print-card">
+      <div class="pc-stripe" style="background:${cfg.stripe}"></div>
+      <div class="pc-body">
+        <div class="pc-hd">
+          <div class="pc-num" style="background:${cfg.numBg}">${num}</div>
+          <span class="pc-name">${g.pharmacy_name}</span>
+          <span class="pc-mgr">${g.rep_name?'('+g.rep_name+')':''}</span>
+          ${isMulti?`<span class="pc-count-pill">처방전 ${g.count}건</span>`:''}
+          ${typeLabelHtml}
+          ${deadlineHtml}
+        </div>
+        ${rxHtml}
+        <div class="pc-grid">
+          <div><div class="pcfl">집하일</div><div class="pcfv">${g.collection_date||'—'}</div></div>
+          <div><div class="pcfl">배송완료</div><div class="pcfv">${g.delivery_date||'—'}</div></div>
+          <div><div class="pcfl">고유 ID</div><div class="pcfv">${g.unique_id||'—'}</div></div>
+          <div style="grid-column:1/-1"><div class="pcfl">운송장 (${boxCount}박스)</div><div class="pcfv mono">${trackHtml}</div></div>
+        </div>
+      </div>
+      ${warnHtml}
+    </div>`;
   }
 
-  const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
-  const totalCount = baseGroups.length;
+  // 마감일 기준 정렬 함수 (없으면 맨 뒤)
+  function sortByDeadline(arr) {
+    return [...arr].sort((a, b) => {
+      const da = parseDeadline(a.deadline);
+      const db = parseDeadline(b.deadline);
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+      return da - db;
+    });
+  }
 
-  // 상태 섹션별로 렌더
   let allSectionsHtml = '';
   let globalNum = 0;
 
@@ -711,98 +797,24 @@ function startPrint(statusFilter) {
     const groups = baseGroups.filter(g => (g.status||'미처리') === status);
     if (!groups.length) return;
 
-    const sCfg = PRINT_STATUS_CFG[status];
+    const sCfg   = PRINT_STATUS_CFG[status];
+    const sorted = sortByDeadline(groups);
 
-    // 상태 섹션 헤더
+    const cards = sorted.map(g => renderPrintCard(g, ++globalNum)).join('');
+
     allSectionsHtml += `
       <div class="print-status-section">
         <div class="print-status-hd">
           <span class="print-status-badge" style="background:${sCfg.bg};color:${sCfg.color};border:1.5px solid ${sCfg.border}">
             ${status === '미처리' ? '● 미처리' : '◑ 처리중'}
           </span>
-          <span style="font-size:11px;color:#888;margin-left:6px">${groups.length}건</span>
-        </div>`;
-
-    // 유형별로 다시 묶기
-    const byType = {};
-    PRINT_TYPE_ORDER.forEach(t => byType[t] = []);
-    groups.forEach(g => {
-      const t = g.request_type || '처방전 요청';
-      if (!byType[t]) byType[t] = [];
-      byType[t].push(g);
-    });
-
-    PRINT_TYPE_ORDER.forEach(type => {
-      const items = byType[type];
-      if (!items?.length) return;
-      const cfg  = PRINT_CFG[type] || PRINT_CFG['처방전 요청'];
-      const meta = getMeta(type);
-
-      const cards = items.map(g => {
-        globalNum++;
-        const patients  = g.patients || [];
-        const isMulti   = g.count > 1;
-        const lines     = (g.tracking_numbers||'').split('\n').filter(Boolean);
-        const boxCount  = parseBoxCount(g.tracking_numbers);
-        const trackHtml = lines.join('<br>') || g.tracking_numbers || '—';
-
-        const rxHtml = meta.showRx ? (isMulti
-          ? `<div class="pc-patients">
-              ${patients.map((p,pi)=>`
-                <div class="pc-pt">
-                  <div class="pc-pt-num" style="background:${cfg.numBg}">${pi+1}</div>
-                  <span class="pc-pt-name">${p.patient_name||'—'}</span>
-                  <span class="pc-pt-dob" style="margin-left:5px">${p.patient_dob?'('+p.patient_dob+')':''}</span>
-                  ${p.hospital_name?`<span class="pc-pt-hosp">· ${p.hospital_name}</span>`:''}
-                  <span class="pc-pt-issue">${p.issue_date||''}</span>
-                </div>`).join('')}
-             </div>`
-          : `<div class="pc-grid" style="margin-bottom:4px">
-              <div><div class="pcfl">환자명</div><div class="pcfv">${patients[0]?.patient_name||'—'}</div></div>
-              <div><div class="pcfl">생년월일</div><div class="pcfv">${patients[0]?.patient_dob||'—'}</div></div>
-              <div><div class="pcfl">교부일자</div><div class="pcfv">${patients[0]?.issue_date||'—'}</div></div>
-              ${patients[0]?.hospital_name?`<div style="grid-column:1/-1"><div class="pcfl">병원</div><div class="pcfv">${patients[0].hospital_name}</div></div>`:''}
-             </div>`) : '';
-
-        const warnHtml = g.notes
-          ? `<div class="pc-warn ${['우선 스캔','재스캔'].includes(type)?'red':'amber'}">⚠️ ${g.notes}</div>` : '';
-
-        return `<div class="print-card">
-          <div class="pc-stripe" style="background:${cfg.stripe}"></div>
-          <div class="pc-body">
-            <div class="pc-hd">
-              <div class="pc-num" style="background:${cfg.numBg}">${globalNum}</div>
-              <span class="pc-name">${g.pharmacy_name}</span>
-              <span class="pc-mgr">${g.rep_name?'('+g.rep_name+')':''}</span>
-              ${isMulti?`<span class="pc-count-pill">처방전 ${g.count}건</span>`:''}
-            </div>
-            ${rxHtml}
-            <div class="pc-grid">
-              <div><div class="pcfl">집하일</div><div class="pcfv">${g.collection_date||'—'}</div></div>
-              <div><div class="pcfl">배송완료</div><div class="pcfv">${g.delivery_date||'—'}</div></div>
-              <div><div class="pcfl">고유 ID</div><div class="pcfv">${g.unique_id||'—'}</div></div>
-              <div style="grid-column:1/-1"><div class="pcfl">운송장 (${boxCount}박스)</div><div class="pcfv mono">${trackHtml}</div></div>
-            </div>
-          </div>
-          ${warnHtml}
-        </div>`;
-      }).join('');
-
-      allSectionsHtml += `
+          <span style="font-size:11px;color:#888;margin-left:6px">${groups.length}건 · 마감일순</span>
+        </div>
         <div class="print-section">
-          <div class="print-section-hd">
-            <span class="print-section-badge" style="background:${cfg.badgeBg};color:${cfg.badgeColor};border:1.5px solid ${cfg.badgeBorder}">${cfg.label}</span>
-            <span style="font-size:11px;color:#888">${items.length}건</span>
-          </div>
           ${cards}
-        </div>`;
-    });
-
-    allSectionsHtml += `</div>`; // .print-status-section
+        </div>
+      </div>`;
   });
-
-  const statusTitle = statusFilter === 'both' ? '미처리 + 처리중' :
-                      statusFilter === '미처리' ? '미처리' : '처리중';
 
   document.getElementById('print-body').innerHTML = `
     <div class="print-page">
