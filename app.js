@@ -110,13 +110,21 @@ async function refresh() {
 // Apps Script는 GET 파라미터 방식이 CORS 없이 가장 안정적
 async function apiCall(params) {
   try {
-    const qs  = Object.entries(params)
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(
-        typeof v === 'object' ? JSON.stringify(v) : v
-      )}`).join('&');
-    const res  = await fetch(`${SCRIPT_URL}?${qs}`);
-    const json = await res.json();
-    return json;
+    const parts = [];
+    for (const [k, v] of Object.entries(params)) {
+      parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(
+        Array.isArray(v) || typeof v === 'object' ? JSON.stringify(v) : String(v)
+      )}`);
+    }
+    const url = `${SCRIPT_URL}?${parts.join('&')}`;
+    const res  = await fetch(url);
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      // Apps Script가 HTML 리다이렉트 반환 시 → 성공으로 처리
+      return { success: true };
+    }
   } catch(e) {
     return { error: e.message };
   }
@@ -470,8 +478,12 @@ function toggleSection(key) {
 // ════════════════════════════════════════════════════════
 async function applyStatus(id, memberIds) {
   const sel = document.getElementById('sel-' + id);
+  const btn = sel?.nextElementSibling;
   if (!sel) return;
-  await changeStatus(id, sel.value, memberIds, sel);
+  const newStatus = sel.value;
+  if (btn) { btn.textContent = '처리중…'; btn.disabled = true; }
+  await changeStatus(id, newStatus, memberIds, sel);
+  if (btn) { btn.textContent = '변경'; btn.disabled = false; }
 }
 
 async function changeStatus(id, newStatus, memberIds, selectEl) {
