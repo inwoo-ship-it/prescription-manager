@@ -14,7 +14,7 @@
 <header class="topbar">
   <div class="tb-left">
     <div class="tb-logo-wrap">
-      <img src="지킴로고.webp" alt="지킴" class="tb-logo-img">
+      <img src="logo.webp" alt="지킴" class="tb-logo-img">
     </div>
     <div>
       <div class="tb-title">처방전 관리</div>
@@ -94,7 +94,7 @@
 <div id="print-view" class="hidden">
   <div class="print-topbar">
     <div style="display:flex;align-items:center;gap:12px">
-      <div class="tb-logo-wrap"><img src="지킴로고.webp" alt="지킴" class="tb-logo-img"></div>
+      <div class="tb-logo-wrap"><img src="logo.webp" alt="지킴" class="tb-logo-img"></div>
       <div><div class="tb-title" style="color:#fff">처방전 관리</div></div>
     </div>
     <div style="display:flex;gap:8px">
@@ -131,10 +131,12 @@
         <div class="fg">
           <label>약국명 <span class="req">*</span></label>
           <input type="text" id="f-pharmacy" placeholder="예: 영등포제일약국">
+          <span class="field-lock hidden" id="lock-pharmacy">🔒 수정 불가</span>
         </div>
         <div class="fg">
-          <label>대표명</label>
+          <label>대표명 <span class="req">*</span></label>
           <input type="text" id="f-rep" placeholder="예: 이종옥">
+          <span class="field-lock hidden" id="lock-rep">🔒 수정 불가</span>
         </div>
 
         <!-- 처방전 정보 (처방전 요청만) -->

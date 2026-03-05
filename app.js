@@ -505,6 +505,8 @@ function openAdd() {
   document.getElementById('save-btn').textContent    = '저장';
   clearForm();
   document.getElementById('f-created').value = TODAY;
+  // 신규: 약국명·대표명 입력 가능
+  setPharmacyLock(false);
   onTypeChange();
   document.getElementById('overlay').classList.remove('hidden');
 }
@@ -536,9 +538,22 @@ function openEdit(id) {
     const el = document.getElementById(elId);
     if (el) el.value = r[field] || '';
   });
+  // 수정 시: 약국명·대표명 잠금
+  setPharmacyLock(true);
   updateModalStatusOpts(r.request_type, r.status);
   toggleRxFields(r.request_type);
   document.getElementById('overlay').classList.remove('hidden');
+}
+
+function setPharmacyLock(locked) {
+  const ph  = document.getElementById('f-pharmacy');
+  const rep = document.getElementById('f-rep');
+  const lph  = document.getElementById('lock-pharmacy');
+  const lrep = document.getElementById('lock-rep');
+  ph.readOnly  = locked;
+  rep.readOnly = locked;
+  lph?.classList.toggle('hidden', !locked);
+  lrep?.classList.toggle('hidden', !locked);
 }
 
 function clearForm() {
@@ -569,7 +584,9 @@ function toggleRxFields(type) {
 
 async function save() {
   const pharmacy = document.getElementById('f-pharmacy').value.trim();
-  if (!pharmacy) { toast('약국명은 필수입니다','err'); return; }
+  const rep      = document.getElementById('f-rep').value.trim();
+  if (!pharmacy) { toast('약국명은 필수입니다', 'err'); return; }
+  if (!rep)      { toast('대표명은 필수입니다', 'err'); return; }
 
   const type   = document.getElementById('f-type').value;
   const showRx = getMeta(type).showRx;
@@ -578,7 +595,7 @@ async function save() {
     deadline:         document.getElementById('f-deadline').value || '',
     request_type:     type,
     pharmacy_name:    pharmacy,
-    rep_name:         document.getElementById('f-rep').value.trim(),
+    rep_name:         rep,
     issue_date:       showRx ? document.getElementById('f-issue').value.trim() : '',
     patient_name:     showRx ? document.getElementById('f-patient').value.trim() : '',
     patient_dob:      showRx ? document.getElementById('f-dob').value.trim() : '',
@@ -619,6 +636,9 @@ async function save() {
 async function del(id) {
   const g = allGroups.find(x => x.id === id);
   if (!confirm(`[${g?.pharmacy_name}] 항목을 삭제하시겠습니까?`)) return;
+  const pw = prompt('관리자 비밀번호를 입력하세요.');
+  if (pw === null) return;
+  if (pw !== 'admin') { toast('비밀번호가 올바르지 않습니다', 'err'); return; }
   const res = await apiPost({ action:'delete', id });
   if (res.error) { toast('삭제 실패','err'); return; }
   toast('삭제되었습니다','ok');
