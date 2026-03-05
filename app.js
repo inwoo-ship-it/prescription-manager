@@ -107,26 +107,24 @@ async function refresh() {
   await fetchData(true);
 }
 
-async function apiPost(body) {
+// Apps Script는 GET 파라미터 방식이 CORS 없이 가장 안정적
+async function apiCall(params) {
   try {
-    const res = await fetch(SCRIPT_URL, {
-      method: 'POST',
-      redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(body),
-    });
-    // Apps Script는 응답 전에 이미 처리 완료 → CORS 에러여도 성공으로 처리
-    try {
-      const json = await res.json();
-      return json;
-    } catch { return { success: true }; }
+    const qs  = Object.entries(params)
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(
+        typeof v === 'object' ? JSON.stringify(v) : v
+      )}`).join('&');
+    const res  = await fetch(`${SCRIPT_URL}?${qs}`);
+    const json = await res.json();
+    return json;
   } catch(e) {
-    // CORS 에러는 실제로 요청이 처리된 후 발생 → 성공으로 처리
-    if (e.message?.includes('fetch') || e.name === 'TypeError') {
-      return { success: true };
-    }
     return { error: e.message };
   }
+}
+
+// 기존 apiPost 호출부와 호환되도록 래핑
+async function apiPost(body) {
+  return apiCall(body);
 }
 
 function setSyncStatus(state, text) {
