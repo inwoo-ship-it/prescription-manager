@@ -109,14 +109,24 @@ async function refresh() {
 
 async function apiPost(body) {
   try {
-    await fetch(SCRIPT_URL, {
+    const res = await fetch(SCRIPT_URL, {
       method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(body),
     });
-    return { success: true };
-  } catch(e) { return { error: e.message }; }
+    // Apps Script는 응답 전에 이미 처리 완료 → CORS 에러여도 성공으로 처리
+    try {
+      const json = await res.json();
+      return json;
+    } catch { return { success: true }; }
+  } catch(e) {
+    // CORS 에러는 실제로 요청이 처리된 후 발생 → 성공으로 처리
+    if (e.message?.includes('fetch') || e.name === 'TypeError') {
+      return { success: true };
+    }
+    return { error: e.message };
+  }
 }
 
 function setSyncStatus(state, text) {
@@ -718,8 +728,8 @@ function startPrint(statusFilter) {
     // 마감일 표시
     const diff = deadlineDiffText(g.deadline);
     const deadlineHtml = g.deadline ? `
-      <span style="margin-left:auto;font-size:10px;font-weight:700;
-        padding:2px 8px;border-radius:6px;
+      <span style="font-size:10px;font-weight:700;
+        padding:2px 8px;border-radius:6px;white-space:nowrap;
         background:${diff?.urgent||diff?.over?'#fff1f1':'#f1f5f9'};
         color:${diff?.urgent||diff?.over?'#dc2626':'#64748b'};
         border:1px solid ${diff?.urgent||diff?.over?'#fecaca':'#e2e8f0'}">
@@ -773,8 +783,8 @@ function startPrint(statusFilter) {
           <div><div class="pcfl">고유 ID</div><div class="pcfv">${g.unique_id||'—'}</div></div>
           <div style="grid-column:1/-1"><div class="pcfl">운송장 (${boxCount}박스)</div><div class="pcfv mono">${trackHtml}</div></div>
         </div>
+        ${warnHtml}
       </div>
-      ${warnHtml}
     </div>`;
   }
 

@@ -318,7 +318,8 @@ body {
 .card-hd {
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-bottom: 10px;
 }
 .card-pharmacy { font-size: 14px; font-weight: 800; letter-spacing: -0.3px; }
@@ -360,7 +361,13 @@ body {
 .status-sel.s-공유완료 { background: var(--blue-bg);  color: var(--blue);  border-color: var(--blue-b); }
 
 /* 카드 바디 */
-.card-body { display: flex; gap: 0; flex-wrap: wrap; }
+.card-body {
+  display: flex;
+  gap: 0;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.card-body > * { min-width: 0; }
 
 /* 처방전 정보 테이블 (처방전 요청 유형) */
 .prescription-table {
@@ -423,12 +430,16 @@ body {
   gap: 6px 20px;
   align-content: start;
   flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
 }
-.logi-item { display: flex; flex-direction: column; gap: 2px; }
+.logi-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .logi-label { font-size: 9px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .4px; }
 .logi-value {
   font-size: 12px; font-weight: 600; color: var(--text);
   line-height: 1.5;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 .logi-value.mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
 .logi-value.tracking { line-height: 1.7; }
@@ -443,6 +454,10 @@ body {
   display: flex;
   gap: 5px;
   align-items: flex-start;
+  width: 100%;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  box-sizing: border-box;
 }
 .card-note.warn { background: var(--red-bg);   color: #991b1b; }
 .card-note.info { background: var(--amber-bg); color: #78350f; }
@@ -613,23 +628,23 @@ body {
   display: flex;
 }
 .pc-stripe { width: 4px; flex-shrink: 0; }
-.pc-body { flex: 1; padding: 11px 14px 12px; }
-.pc-hd { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.pc-body { flex: 1; padding: 11px 14px 12px; min-width: 0; overflow: hidden; }
+.pc-hd { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
 .pc-num { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; color: #fff; flex-shrink: 0; }
-.pc-name { font-size: 13px; font-weight: 900; }
+.pc-name  { font-size: 13px; font-weight: 900; word-break: keep-all; }
 .pc-mgr  { font-size: 11px; color: #666; }
-.pc-count-pill { background: #e0e7ff; color: #3730a3; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+.pc-count-pill { background: #e0e7ff; color: #3730a3; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; white-space: nowrap; }
 .pc-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px 14px; }
 .pcfl { font-size: 9px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: .4px; }
-.pcfv { font-size: 11.5px; font-weight: 600; color: #1a1a1a; line-height: 1.5; margin-top: 1px; }
-.pcfv.mono { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; }
+.pcfv { font-size: 11.5px; font-weight: 600; color: #1a1a1a; line-height: 1.5; margin-top: 1px; word-break: break-all; }
+.pcfv.mono { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; word-break: break-all; }
 .pc-patients { border-top: 1px solid #f0f3f9; margin-top: 8px; padding-top: 7px; display: flex; flex-direction: column; gap: 4px; }
-.pc-pt { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.pc-pt { display: flex; align-items: center; gap: 6px; font-size: 11px; flex-wrap: wrap; }
 .pc-pt-num { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; color: #fff; flex-shrink: 0; }
 .pc-pt-name { font-weight: 700; } .pc-pt-dob { color: #888; } .pc-pt-hosp { color: #aaa; font-size: 10.5px; margin-left: 4px; } .pc-pt-issue { color: #888; margin-left: auto; }
-.pc-warn { padding: 7px 14px; font-size: 11px; font-weight: 600; display: flex; gap: 5px; border-top: 1px dashed; }
-.pc-warn.red   { background: #fff1f1; color: #991b1b; border-color: #fecaca; }
-.pc-warn.amber { background: #fffbeb; color: #78350f; border-color: #fde68a; }
+.pc-warn { padding: 7px 10px; font-size: 11px; font-weight: 600; display: block; border-radius: 6px; margin-top: 8px; word-break: break-all; white-space: normal; width: 100%; }
+.pc-warn.red   { background: #fff1f1; color: #991b1b; border: 1px dashed #fecaca; }
+.pc-warn.amber { background: #fffbeb; color: #78350f; border: 1px dashed #fde68a; }
 .print-foot { background: #f7f9fc; border-top: 1px solid #eaeef5; padding: 10px 22px; display: flex; gap: 16px; flex-wrap: wrap; }
 .pfi { font-size: 10px; color: #888; display: flex; align-items: center; gap: 4px; }
 .pfd { width: 8px; height: 8px; border-radius: 50%; }
